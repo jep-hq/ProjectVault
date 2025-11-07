@@ -1,0 +1,9 @@
+<script>
+  window.printessGlobalConfig = {
+    onAddToBasket: (saveToken, thumbnailUrl, params) => jepProjectVaultSave('printess', 'onAddToBasket', saveToken, thumbnailUrl, params),
+    onSave: (saveToken, thumbnailUrl, params) => jepProjectVaultSave('printess', 'onSave', saveToken, thumbnailUrl, params),
+    onLoad: (templateName, params) => jepProjectVaultLoad('printess', 'onLoad', templateName, params),
+    onLoaded: (templateName, params) => jepProjectVaultLoaded('printess', 'onLoaded', templateName, params),
+    handleMultipleAddButtons: true,
+  };
+</script>

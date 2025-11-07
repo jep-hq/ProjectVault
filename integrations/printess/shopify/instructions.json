@@ -1,0 +1,23 @@
+{
+  "files": [
+    {
+      "name": "jep-projectvault-printess-global-config.liquid",
+      "folder": "snippets",
+      "action": "replace"
+    },
+    {
+      "name": "jep-projectvault.liquid",
+      "folder": "snippets",
+      "action": "replace"
+    },
+    {
+      "name": "theme.liquid",
+      "folder": "layout",
+      "action": "after_body_open"
+    }
+  ],
+  "requirements": [
+    "alpine",
+    "tailwindcss"
+  ]
+}

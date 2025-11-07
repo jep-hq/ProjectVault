@@ -1,0 +1,352 @@
+{{ 'alpine.js' | asset_url | script_tag }}
+
+<script>
+const JEP_PROJECTVAULT_CUSTOMER_ID = '{{customer.id}}'
+const JEP_PROJECTVAULT_STORAGE_KEY_OLD = 'jepPPProjects'
+const JEP_PROJECTVAULT_STORAGE_KEY = 'jepProjectVaultProjects'
+let skipLogin = false
+
+
+function createPromptPromise(title, message) {
+  return new Promise(resolve => {
+    window.dispatchEvent(new CustomEvent('open-prompt', {
+      detail: {
+        title: title,
+        message: message,
+        callback: (value) => resolve(value)
+      }
+    }));
+  });
+}
+
+function jepProjectVaultApiRequest(method, endpoint, query, body) {
+  const request = {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': 'dIgf2CEBIn8LBdNoysujxaFaIaDVR92T8VqREyzN'
+    },
+  }
+  if (body) {
+    request.body = JSON.stringify(body)
+  }
+  return fetch(`https://cp.tools.jep-dev.com/projects${endpoint}?${query}`, request)
+}
+
+function getStorage() {
+  const projectsOLD = JSON.parse(localStorage.getItem(JEP_PROJECTVAULT_STORAGE_KEY_OLD)) || []
+  if(projectsOLD.length > 0){
+    localStorage.setItem(JEP_PROJECTVAULT_STORAGE_KEY, JSON.stringify(projectsOLD))
+    localStorage.removeItem(JEP_PROJECTVAULT_STORAGE_KEY_OLD)
+  }
+  const projects = JSON.parse(localStorage.getItem(JEP_PROJECTVAULT_STORAGE_KEY)) || []
+  return projects
+}
+
+async function jepProjectVaultSave(toolName, methodName, saveToken, thumbnailUrl, params) {
+  // send POST message to API
+  const tokenOld = params.lastSaveToken || params.initialSaveToken || params.originalSaveToken || ''
+
+  const project_request = {
+    source: 'shopify',
+    tool: toolName,
+    name: '',
+    token_old: tokenOld,
+    template_name: params.templateNameOrSaveToken,
+    current: {
+      token: saveToken,
+      thumbnail_url: thumbnailUrl,
+      variant: {
+        id: params.selectedVariant.id,
+        name: params.selectedVariant.name,
+      }
+    },
+    customer_id: JEP_PROJECTVAULT_CUSTOMER_ID,
+    product: {
+      id: params.product.id,
+      name: params.product.title,
+      handle: `/products/${params.product.handle}`,
+    }
+  }
+
+  if (!tokenOld && methodName === 'onSave') {
+    // show input field to get the name
+    project_request.name = await createPromptPromise('title', 'description')
+    //project_request.name = prompt('Please enter a name for your project')
+  }
+
+  const response = await jepProjectVaultApiRequest('POST', '', '', project_request)
+  try {
+    const project = await response.json();
+    if (response.ok) {
+      // find project in localStorage
+      const projects = getStorage()
+      const projectIndex = projects.findIndex(p => p._id === project._id)
+      if (projectIndex !== -1) {
+        // update existing project
+        projects[projectIndex] = project
+      } else {
+        // add new project
+        projects.push(project)
+      }
+      // save projects to localStorage
+      localStorage.setItem(JEP_PROJECTVAULT_STORAGE_KEY, JSON.stringify(projects))
+      // trigger event to load projects
+      if (methodName === 'onSave') {
+        window.dispatchEvent(new CustomEvent('jep-projectvault-load', {
+          detail: {
+            templateName: project.template_name,
+            product: {
+              id: project.product.id,
+              name: project.product.name,
+            },
+          }
+        }));
+      }
+    } else {
+      console.error('Error saving project:', project);
+      // Optionally, you can show an error message to the user
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+async function jepProjectVaultLoad(toolName, methodName, templateName, params) {
+  // load projects from localStorage
+  const projects = getStorage()
+  //console.log('Projects loaded from localStorage:', projects);
+  window.dispatchEvent(new CustomEvent('jep-projectvault-load', {
+    detail: {
+      templateName: templateName,
+      product: {
+        id: params.product.id,
+        name: params.product.title,
+      }
+    }
+  }));
+}
+
+async function jepProjectVaultLoaded(toolName, methodName, templateName, params) {
+}
+
+// LocalStorage utility functions
+function setLocalStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error('Error saving to localStorage:', error)
+  }
+}
+
+function getLocalStorage(key) {
+  try {
+    const item = localStorage.getItem(key)
+    return item ? JSON.parse(item) : null
+  } catch (error) {
+    console.error('Error reading from localStorage:', error)
+    return null
+  }
+}
+
+function removeLocalStorage(key) {
+  try {
+    localStorage.removeItem(key)
+  } catch (error) {
+    console.error('Error removing from localStorage:', error)
+  }
+}
+
+function jepProjectVaultBasic() {
+  return {
+    showModal: false,
+    showSidebar: false,
+    showLoadWindow: false,
+    showSaveWindow: false,
+    projects: [],
+    product: null,
+
+    promptTitle: '',
+    promptMessage: '',
+    promptValue: '',
+    promptCallback: null,
+
+    init() {
+      // Initialization code if needed
+    },
+
+    loadProjects() {
+      console.log("Loading projects for product:", JEP_PROJECTVAULT_STORAGE_KEY)
+      const allProjects = JSON.parse(localStorage.getItem(JEP_PROJECTVAULT_STORAGE_KEY)) || []
+      this.projects = allProjects.filter(p => p.product.id === this.product.id).sort((a, b) => {
+        return new Date(b.updated_at) - new Date(a.updated_at)
+      })
+    },
+
+    openPrompt(title, message, callback) {
+      this.promptTitle = title;
+      this.promptMessage = message;
+      this.promptCallback = callback;
+      this.promptValue = '';
+      this.showModal = true;
+    },
+    confirmPrompt() {
+      if (this.promptValue && this.promptCallback) {
+        // Call the callback with the template name
+        this.promptCallback(this.promptValue);
+      } else {
+        console.warn("No template name provided or no callback available");
+      }
+      this.showModal = false;
+    },
+    cancelPrompt() {
+      if (this.promptCallback) {
+        // You can either resolve with null/empty or not resolve at all
+        // this.promptCallback(null); // Uncomment if you want to resolve with null
+      }
+      this.showModal = false;
+    },
+
+    openLoadWindow(event) {
+      this.product = event.detail.product
+      this.loadProjects()
+      this.showSidebar = true
+      this.showLoadWindow = true
+      this.showSaveWindow = false
+    },
+    closeSidebar() {
+      this.showSidebar = false
+      this.showLoadWindow = false
+      this.showSaveWindow = false
+      this.projects =[]
+    },
+  }
+}
+</script>
+
+
+<div
+  id="jep-project-vault-container"
+  x-data="jepProjectVaultBasic()"
+  x-init="init()"
+  x-on:open-prompt.window="openPrompt($event.detail.title, $event.detail.message, $event.detail.callback)"
+  x-on:jep-projectvault-project-created.window="openSaveWindow()"
+>
+  <!-- Modal -->
+  <div
+    x-show="showModal"
+    @keydown.escape.window="cancelPrompt()"
+    @keydown.enter.window="confirmPrompt()"
+    class="relative z-[210000]" aria-labelledby="modal-title" role="dialog" aria-modal="true"
+  >
+    <!--
+      Background backdrop, show/hide based on modal state.
+
+      Entering: "ease-out duration-300"
+        From: "opacity-0"
+        To: "opacity-100"
+      Leaving: "ease-in duration-200"
+        From: "opacity-100"
+        To: "opacity-0"
+    -->
+    <div class="fixed inset-0 bg-gray-500/75 transition-opacity" aria-hidden="true"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+      <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <!--
+          Modal panel, show/hide based on modal state.
+
+          Entering: "ease-out duration-300"
+            From: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            To: "opacity-100 translate-y-0 sm:scale-100"
+          Leaving: "ease-in duration-200"
+            From: "opacity-100 translate-y-0 sm:scale-100"
+            To: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+        -->
+        <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+          <div class="sm:flex sm:items-start">
+
+            <div class="mt-3 sm:mt-0 sm:ml-4 text-left">
+              <h3 class="!text-base !font-semibold !text-gray-900" id="modal-title">Gib deiner Gestaltung einen Namen:</h3>
+              <div class="mt-2">
+                <p class="!text-sm !text-gray-500">Bitte beachte, dass die Vorlage nur dauerhaft gespeichert werden kann, wenn du in deinem Kundenkonto eingeloggt bist. Als Gast wird deine Vorlage temporär gespeichert.</p>
+                <input
+                  type="text"
+                  x-model="promptValue"
+                  class="!mt-2 !w-full !border-gray-300 !border-1 !shadow-sm  sm:!text-sm !p-2"
+                  placeholder="Name der Gestaltung*"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="!mt-5 sm:!mt-4 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              class="!inline-flex w-full !justify-center !rounded-md !bg-black !px-3 !py-2 !text-sm !font-semibold !text-white !shadow-xs hover:!bg-gray-700 sm:!ml-3 sm:!w-auto"
+              @click="confirmPrompt()"
+            >
+              Speichern
+            </button>
+            <button
+              type="button"
+              class="!inline-flex w-full !justify-center !rounded-md !bg-white !px-3 !py-2 !text-sm !font-semibold !text-gray-900 !shadow-xs !ring-1 !ring-gray-300 !ring-inset hover:!bg-gray-50 sm:!mt-0 sm:!w-auto"
+              @click="cancelPrompt()"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Start -->
+  <div
+    x-show="showSidebar"
+    @click="closeSidebar()"
+    class="fixed inset-0 bg-black/50 z-[200000]"
+  ></div>
+  <div @jep-projectvault-load.window="openLoadWindow">
+
+    <!-- Sidebar-->
+    <div x-show="showSidebar"
+      x-transition:enter="transition-transform transform duration-300 ease-in-out"
+      x-transition:enter-start="translate-x-full"
+      x-transition:enter-end="translate-x-0"
+      x-transition:leave="transition-transform transform duration-300 ease-in-out"
+      x-transition:leave-start="translate-x-0"
+      x-transition:leave-end="translate-x-full"
+      @keydown.escape.window="closeSidebar()"
+      class="fixed top-0 right-0 h-full w-96 border-0 block bg-white shadow-lg p-4 z-200001"
+    >
+      <div class="flex justify-between items-center border-b pb-2">
+        <div>
+          <h2 class="text-lg">Eigene Vorlagen</h2>
+          <span class="text-sm" x-text="'Artikel: ' + product?.name || ''" />
+        </div>
+        <button @click="closeSidebar()" class="text-gray-500 hover:text-red-500">&times;</button>
+      </div>
+      <div class="mt-4 space-y-3 h-full overflow-y-auto">
+        <template x-if="projects.length === 0"><span>- Keine Projekte gefunden -</span></template>
+        <template x-if="projects.length > 0">
+          <div class="flex flex-wrap justify-between space-y-4 cursor-pointer">
+            <template x-for="project in projects" :key="project._id">
+              <div
+                class="p-2 rounded-md shadow-md hover:shadow-xl transition-shadow duration-300 ease-in-out h-50"
+                @click="window.dispatchEvent(new CustomEvent('jep-projectvault-load-printess', { detail: { project: project } }))"
+              >
+                <div class="flex justify-center">
+                  <img :src="project.current.thumbnail_url" alt="Thumbnail" class="w-32 h-32">
+                </div>
+                <div>
+                  <h3 class="text-md font-semibold" x-text="project.name"></h3>
+                  <p class="text-xs text-gray-500" x-text="'gespeichert am: ' + (new Date(project.updated_at)).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})"></p>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
