@@ -1,5 +1,9 @@
 <script src="{{ 'alpine.js' | asset_url }}" defer="defer"></script>
 
+<style>
+  [x-cloak] { display: none !important; }
+</style>
+
 <script>
 const JEP_PROJECTVAULT_CUSTOMER_ID = '{{customer.id}}'
 const JEP_PROJECTVAULT_STORAGE_KEY_OLD = 'jepPPProjects'
@@ -24,7 +28,7 @@ function jepProjectVaultApiRequest(method, endpoint, query, body) {
     method: method,
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': '{{ settings.jep_projectvault_api_key }}',
+      'x-api-key': '{{ settings.jep_projectvault__apiKey }}',
     },
   }
   if (body) {
@@ -226,7 +230,7 @@ function jepProjectVaultBasic() {
 
 
 <div
-  id="jep-project-vault-container"
+  id="jep-projectvault-container"
   x-data="jepProjectVaultBasic()"
   x-init="init()"
   x-on:open-prompt.window="openPrompt($event.detail.title, $event.detail.message, $event.detail.callback)"
@@ -234,6 +238,7 @@ function jepProjectVaultBasic() {
 >
   <!-- Modal -->
   <div
+    x-cloak
     x-show="showModal"
     @keydown.escape.window="cancelPrompt()"
     @keydown.enter.window="confirmPrompt()"
@@ -302,6 +307,7 @@ function jepProjectVaultBasic() {
 
   <!-- Sidebar Start -->
   <div
+    x-cloak
     x-show="showSidebar"
     @click="closeSidebar()"
     class="fixed inset-0 bg-black/50 z-[200000]"
@@ -309,7 +315,7 @@ function jepProjectVaultBasic() {
   <div @jep-projectvault-load.window="openLoadWindow">
 
     <!-- Sidebar-->
-    <div x-show="showSidebar"
+    <div x-cloak x-show="showSidebar"
       x-transition:enter="transition-transform transform duration-300 ease-in-out"
       x-transition:enter-start="translate-x-full"
       x-transition:enter-end="translate-x-0"
