@@ -24,7 +24,7 @@ function jepProjectVaultApiRequest(method, endpoint, query, body) {
     method: method,
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': 'dIgf2CEBIn8LBdNoysujxaFaIaDVR92T8VqREyzN'
+      'x-api-key': '{{ settings.jep_projectvault_api_key }}',
     },
   }
   if (body) {

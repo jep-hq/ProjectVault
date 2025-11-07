@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "schema": {
+        "JEP": [
+        {
+          "type": "header",
+          "content": "ProjectVault"
+        },
+        {
+          "type": "text",
+          "id": "jep_projectvault__apiKey",
+          "label": "API Key"
+        }
+      ]
+    }
+  }
+}

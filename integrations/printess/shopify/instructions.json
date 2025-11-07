@@ -1,4 +1,8 @@
 {
+  "requirements": [
+    "alpine",
+    "tailwindcss"
+  ],
   "files": [
     {
       "name": "jep-projectvault-printess-global-config.liquid",
@@ -15,9 +19,5 @@
       "folder": "layout",
       "action": "after_body_open"
     }
-  ],
-  "requirements": [
-    "alpine",
-    "tailwindcss"
   ]
 }
