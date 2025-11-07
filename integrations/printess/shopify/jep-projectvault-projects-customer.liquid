@@ -1,0 +1,225 @@
+
+<script>
+function jepProjectvaultProjects() {
+  return {
+    projects: [],
+    isProjectLoading: true,
+    isBtnClicked: false,
+    async fetchProjects() {
+      try {
+
+        const response = await jepProjectvaultProjectsApiRequest('GET', '', `customer_id=${JEP_TOOLS_Projectvault_CUSTOMER_ID}`)
+        const { projects } = await response.json()
+        this.projects = projects
+      } catch (error) {
+        console.log('Error:', error)
+      }
+      this.isProjectLoading = false
+    },
+    formatDate(dateString) {
+      const options = { year: 'numeric', month: 'long', day: 'numeric' }; // Customize as needed
+      return new Date(dateString).toLocaleDateString(undefined, options);
+    },
+    async deleteEntry(template_id) {
+      if (!confirm('{{ 'jep-projectvault.projects.prompt_delete' | t}}')) {
+        return
+      }
+      this.isBtnClicked = true
+      try {
+        await jepProjectvaultProjectsApiRequest('DELETE', `/${template_id}`, `customer_id=${JEP_TOOLS_Projectvault_CUSTOMER_ID}`)
+        // remove entry from projects
+        this.projects = this.projects.filter(project => project._id !== template_id)
+      } catch (error) {
+        console.log('Error:', error)
+      }
+      this.isBtnClicked = false
+    },
+    async copyEntry(projectId) {
+      this.isBtnClicked = true
+
+      const data = await apiRequest('POST', '', `customer_id=${JEP_TOOLS_Projectvault_CUSTOMER_ID}&copy_project_id=${projectId}`, {})
+      await this.fetchProjects()
+      this.isBtnClicked = false
+    }
+  }
+}
+</script>
+
+<div class="jep-projectvault__projects" x-data="jepProjectvaultProjects()" x-init="fetchProjects()">
+  <h2>{{ 'jep-projectvault.projects.my_projects_title' | t }}</h2>
+
+  <template x-if="isProjectLoading">
+    <div>
+      <p>
+      <img name="submit-loader" src="{{- 'ajax-loader.gif' | asset_img_url: '32px' -}}" style="height: 24px">
+      {{ 'jep-projectvault.projects.loading_projects' | t }}</p>
+    </div>
+  </template>
+  <template x-if="projects.length === 0 && !isProjectLoading">
+    <div>
+      <p>{{ 'jep-projectvault.projects.no_projects_found' | t }}</p>
+    </div>
+  </template>
+  <template x-if="projects.length > 0 && !isProjectLoading">
+    <div class="table_container">
+      <table id="no-more-tables">
+        <thead>
+          <tr>
+            <th colspan="2">{{ 'jep-projectvault.projects.table_header.project' | t }}</th>
+            <th>{{ 'jep-projectvault.projects.table_header.created_at' | t }}</th>
+            <th>{{ 'jep-projectvault.projects.table_header.salesorder_at' | t }}</th>
+            <th>{{ 'jep-projectvault.projects.table_header.deleted_at' | t }}</th>
+            <th>{{ 'jep-projectvault.projects.table_header.actions' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="project in projects" :key="project._id">
+            <tr>
+              <td data-title="{{ 'jep-projectvault.projects.table_header.project' | t }}">
+                <div class="project_thumbnail">
+                  <img
+                    :src="project.current.thumbnail_url"
+                    alt="Projekt Bild"
+                    style="width: 120px;"
+                  />
+                </div>
+              </td>
+              <td>
+                <span x-text="project.product.name"></span>
+              </td>
+              <td
+                x-text="formatDate(project.created_at)"
+                data-title="{{ 'jep-projectvault.projects.table_header.created_at' | t }}"
+              />
+              <td data-title="{{ 'jep-projectvault.projects.table_header.salesorder_at' | t }}">
+                <template x-if="project.sales_order">
+                  <div x-text="formatDate(project?.sales_order?.created_at)"></div>
+                </template>
+                <template x-if="!project.sales_order">
+                  <div>-</div>
+                </template>
+              </td>
+              <td
+                x-text="formatDate(project.available_until)"
+                data-title="{{ 'jep-projectvault.projects.table_header.deleted_at' | t }}"
+              />
+              <!--<td x-text="project.sales_order_number"></td>-->
+              <td data-title="{{ 'jep-projectvault.projects.table_header.actions' | t }}">
+                <template x-if="isBtnClicked">
+                  <div>
+                    <img name="submit-loader" class="custom-select--loader" src="{{- 'ajax-loader.gif' | asset_img_url: '32px' -}}" style="height: 24px">
+                  </div>
+                </template>
+                <template x-if="!isBtnClicked">
+                  <div>
+                    <div class="action">
+                      <a :href="project.product.handle + '?variant=' + project.current.variant.id + '&savetoken=' + project.current.token">
+                        {{ 'jep-projectvault.projects.actions.edit' | t }}
+                      </a>
+                    </div>
+                    <div class="action" style="display:none">
+                      <a href="#" @click.prevent="copyEntry(project._id)">
+                        {{ 'jep-projectvault.projects.actions.copy' | t }}
+                      </a>
+                    </div>
+                    <div class="action">
+                      <a href="#" @click.prevent="deleteEntry(project._id)">
+                        {{ 'jep-projectvault.projects.actions.delete' | t }}
+                      </a>
+                    </div>
+                  </div>
+                </template>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </template>
+
+</div>
+
+
+<style>
+    .jep-projectvault__projects tr + tr {
+      border-top: 1px solid grey;
+    }
+    /*
+    .jep-projectvault__projects th {
+        border-bottom: 1px solid grey;
+    }
+    */
+    .jep-projectvault__projects .action {
+      margin-bottom: 12px;
+      text-decoration: underline;
+    }
+
+    .jep-projectvault__projects .table_container {
+      overflow-y: auto; /* Enable vertical scrolling */
+    }
+
+    .jep-projectvault__projects .table_container .project_thumbnail {
+      width: 120px;
+    }
+
+    @media screen and (max-width: 600px) {
+      .jep-projectvault__projects .table_container .project_thumbnail {
+        width: 80px;
+      }
+    }
+
+    @media only screen and (max-width: 600px) {
+      #no-more-tables {
+        width: 100%;
+      }
+
+      /* Force table to not be like tables anymore */
+      #no-more-tables table,
+      #no-more-tables thead,
+      #no-more-tables tbody,
+      #no-more-tables th,
+      #no-more-tables td,
+      #no-more-tables tr {
+        display: block;
+      }
+
+      /* Hide table headers (but not display: none;, for accessibility) */
+      #no-more-tables thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
+
+      #no-more-tables tr {
+        padding-top: 12px;
+      }
+
+      #no-more-tables td {
+        /* Behave  like a "row" */
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        white-space: normal;
+        text-align:left;
+      }
+
+      #no-more-tables td:before {
+        /* Now like a table header */
+        position: absolute;
+        /* Top/left values mimic padding */
+        top: 6px;
+        left: 6px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align:left;
+      }
+
+      /*
+      Label the data
+      */
+      #no-more-tables td:before { content: attr(data-title); }
+    }
+
+
+</style>

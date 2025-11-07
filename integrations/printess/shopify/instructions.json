@@ -15,6 +15,11 @@
       "action": "replace"
     },
     {
+      "name": "jep-projectvault-projects-customer.liquid",
+      "folder": "snippets",
+      "action": "replace"
+    },
+    {
       "name": "theme.liquid",
       "folder": "layout",
       "action": "after_body_open"
