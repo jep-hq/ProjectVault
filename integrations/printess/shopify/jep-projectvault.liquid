@@ -1,4 +1,4 @@
-{{ 'alpine.js' | asset_url | script_tag }}
+<script src="{{ 'alpine.js' | asset_url }}" defer="defer"></script>
 
 <script>
 const JEP_PROJECTVAULT_CUSTOMER_ID = '{{customer.id}}'
